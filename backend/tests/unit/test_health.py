@@ -39,3 +39,4 @@ def test_standardized_app_error_handler() -> None:
     assert payload["error"]["message"] == "Custom domain failure"
     assert payload["error"]["details"] == {"field": "sample"}
     assert payload["error"]["request_id"] == "err-req-456"
+

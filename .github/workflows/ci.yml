@@ -8,8 +8,22 @@ on:
 
 jobs:
   backend-ci:
-    name: Backend (Ruff & Pytest)
+    name: Backend (Ruff, Alembic & Pytest)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ragdesk
+          POSTGRES_PASSWORD: ragdesk_test_password
+          POSTGRES_DB: ragdesk_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ragdesk -d ragdesk_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: ./backend
@@ -33,9 +47,19 @@ jobs:
       - name: Run Ruff linter
         run: ruff check .
 
+      - name: Verify Alembic migrations on PostgreSQL + pgvector
+        env:
+          DATABASE_URL: postgresql+psycopg://ragdesk:ragdesk_test_password@localhost:5432/ragdesk_test
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+
       - name: Run Pytest suite
         env:
           APP_ENV: test
+          DATABASE_URL: postgresql+psycopg://ragdesk:ragdesk_test_password@localhost:5432/ragdesk_test
+          TEST_DATABASE_URL: postgresql+psycopg://ragdesk:ragdesk_test_password@localhost:5432/ragdesk_test
           LLM_PROVIDER: mock
           EMBEDDING_PROVIDER: mock
         run: pytest -v
